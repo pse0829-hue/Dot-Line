@@ -173,6 +173,7 @@ body{
 .poster-player:hover .pp-hint{opacity:1;}
 .pp-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;color:rgba(242,217,78,.9);opacity:0;transition:opacity .2s;pointer-events:none;text-shadow:0 0 20px rgba(242,217,78,.5);}
 #modal-media img{width:100%;height:auto;display:block;max-height:75vh;object-fit:contain;}
+#modal-media video{width:100%;height:auto;display:block;max-height:75vh;object-fit:contain;}
 #modal-media .ph{font-size:9px;letter-spacing:.18em;color:#2a2a14;text-transform:uppercase;}
 #modal-info{margin-top:16px;display:flex;justify-content:space-between;align-items:flex-end;}
 .mi-name{font-size:13px;letter-spacing:.12em;color:var(--y);}
@@ -309,7 +310,7 @@ const ARTISTS = ARTIST_NAMES.map((name,i)=>({
 //  DRIVE CONFIG
 //  Apps Script 배포 후 URL을 DRIVE_SCRIPT_URL에 붙여넣기
 // ══════════════════════════════════════════════
-const DRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_Nzk65A3AehvyfCCOIedb4dMm0xuWpJCueSTlKXA7RK1G4U3DyMTIFx7HXlB1RMw10g/exec';
+const DRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzog_sHsscug_oUItlgSwxaJJo3cZSZWBGOA81cO4c_aSnQrQ8Nmt9BIcA0Q8R-RbUvzA/exec';
 
 function applyDriveData(data){
   if(data.error){ console.warn('[Drive] script error:', data.error); return; }
@@ -731,8 +732,7 @@ function _fillDetail(i){
     const works=fm?getWorksForMedia(artist,fm):artist.works.filter(w=>w.type===type);
     if(!works.length)return'';
     const w=works[0];
-    const startIdx=fm==='포스터'?posterStartIdx(works):0;
-    return `<div class="wi" onclick="openWorkModal(${i},${startIdx},${fm?`'${fm}'`:'null'})">
+    return `<div class="wi" onclick="openWorkModal(${i},0,${fm?`'${fm}'`:'null'})">
       <div class="wthumb">${w.thumb?`<img src="${w.thumb}">`:type}</div>
       <div class="wtype">${type}</div>
       <div class="wtitle">${w.title}</div>
@@ -777,8 +777,12 @@ window.openWorkModal=function(artistIdx,workIdx,filterMedia){
   modalArtistIdx=artistIdx;
   modalFilterMedia=filterMedia||null;
   const artist=nodes[artistIdx].artist;
-  modalWorkIdx=workIdx;
-  renderModalWork(artist,getWorksForMedia(artist,modalFilterMedia),workIdx);
+  // 포스터 뷰: 무빙포스터 슬라이드 제거
+  const works=filterMedia==='포스터'
+    ? artist.works.filter(w=>w.type==='포스터')
+    : getWorksForMedia(artist,modalFilterMedia);
+  modalWorkIdx=0;
+  renderModalWork(artist,works,0);
   document.getElementById('modal').classList.add('open');
 };
 function closeDetail(){
@@ -881,14 +885,16 @@ let modalArtistIdx=-1, modalWorkIdx=0, modalFilterMedia=null;
 window.toggleMotion=function(container){
   const videoSrc=container.dataset.video;
   const posterSrc=container.dataset.poster;
-  container.innerHTML=`<video src="${videoSrc}" autoplay playsinline style="width:100%;display:block;pointer-events:none;"></video>`;
+  const posterTitle=container.dataset.title||'';
+  container.innerHTML=`<video src="${videoSrc}" autoplay playsinline></video>`;
   container.onclick=null;
   container.style.cursor='default';
   const vid=container.querySelector('video');
   vid.addEventListener('ended',function(){
-    container.innerHTML=`<img src="${posterSrc}" style="width:100%;display:block;"><div class="pp-hint">▶</div>`;
+    container.innerHTML=`<img src="${posterSrc}" alt="${posterTitle}"><div class="pp-hint">▶</div>`;
     container.dataset.video=videoSrc;
     container.dataset.poster=posterSrc;
+    container.dataset.title=posterTitle;
     container.style.cursor='pointer';
     container.onclick=function(){toggleMotion(container);};
   });
@@ -903,10 +909,12 @@ function openModal(artistIdx, filterMedia){
   modalArtistIdx=artistIdx;
   modalFilterMedia=filterMedia;
   const artist=nodes[artistIdx].artist;
-  const works=getWorksForMedia(artist,filterMedia);
-  const startIdx=filterMedia==='포스터'?posterStartIdx(works):0;
-  modalWorkIdx=startIdx;
-  renderModalWork(artist, works, startIdx);
+  // 포스터 뷰: 무빙포스터는 별도 슬라이드 없이 포스터 클릭으로 인라인 재생
+  const works=filterMedia==='포스터'
+    ? artist.works.filter(w=>w.type==='포스터')
+    : getWorksForMedia(artist,filterMedia);
+  modalWorkIdx=0;
+  renderModalWork(artist, works, 0);
   document.getElementById('modal').classList.add('open');
 }
 
@@ -917,12 +925,12 @@ function renderModalWork(artist, works, idx){
   // Content
   const isVideo=(w.type==='영상'||w.type==='무빙포스터');
   if(w.type==='포스터'){
-    // 포스터: 기본 이미지 표시, 무빙포스터 있으면 클릭 시 재생
-    const mp=works.find(x=>x.type==='무빙포스터');
+    // 포스터: 클릭 시 무빙포스터 인라인 재생 (artist.works에서 탐색)
+    const mp=artist.works.find(x=>x.type==='무빙포스터');
     const videoSrc=mp&&mp.directSrc?mp.directSrc:null;
     if(w.thumb&&videoSrc){
-      media.innerHTML=`<div class="poster-player" data-video="${videoSrc}" data-poster="${w.thumb}" onclick="toggleMotion(this)">
-        <img src="${w.thumb}" alt="${w.title}" style="width:100%;display:block;">
+      media.innerHTML=`<div class="poster-player" data-video="${videoSrc}" data-poster="${w.thumb}" data-title="${w.title}" onclick="toggleMotion(this)">
+        <img src="${w.thumb}" alt="${w.title}">
         <div class="pp-hint">▶</div>
       </div>`;
     }else if(w.thumb){
@@ -957,7 +965,9 @@ function renderModalWork(artist, works, idx){
 
 window.stepModal=function(dir){
   const artist=nodes[modalArtistIdx].artist;
-  const works=getWorksForMedia(artist,modalFilterMedia);
+  const works=modalFilterMedia==='포스터'
+    ? artist.works.filter(w=>w.type==='포스터')
+    : getWorksForMedia(artist,modalFilterMedia);
   const next=modalWorkIdx+dir;
   if(next<0||next>=works.length)return;
   modalWorkIdx=next;

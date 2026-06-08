@@ -174,6 +174,10 @@ body{
 .pp-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;color:rgba(242,217,78,.9);opacity:0;transition:opacity .2s;pointer-events:none;text-shadow:0 0 20px rgba(242,217,78,.5);}
 #modal-media img{width:100%;height:auto;display:block;max-height:75vh;object-fit:contain;}
 #modal-media video{width:100%;height:auto;display:block;max-height:75vh;object-fit:contain;}
+#modal-media video::-webkit-media-controls,
+#modal-media video::-webkit-media-controls-panel,
+#modal-media video::-webkit-media-controls-play-button,
+#modal-media video::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none;}
 #modal-media .ph{font-size:9px;letter-spacing:.18em;color:#2a2a14;text-transform:uppercase;}
 #modal-info{margin-top:16px;display:flex;justify-content:space-between;align-items:flex-end;}
 .mi-name{font-size:13px;letter-spacing:.12em;color:var(--y);}
@@ -285,7 +289,7 @@ body{
 // ══════════════════════════════════════════════
 //  DATA — 아티스트 정보 여기서 수정
 // ══════════════════════════════════════════════
-const MEDIA = ['영상','포스터','무빙포스터','책'];
+const MEDIA = ['영상','포스터','책'];
 
 // works.thumb: 이미지 경로 or null
 // works.src:   영상/무빙포스터의 경우 구글드라이브 파일ID or 전체 URL
@@ -326,8 +330,13 @@ function applyDriveData(data){
       if(!f) return;
       w.thumb = 'https://drive.google.com/thumbnail?id=' + f.id + '&sz=w400';
       if(f.isVideo){
-        w.src       = 'https://drive.google.com/file/d/' + f.id + '/preview';
-        w.directSrc = 'https://drive.google.com/uc?id=' + f.id + '&export=download';
+        w.src = 'https://drive.google.com/file/d/' + f.id + '/preview';
+        // 무빙포스터는 GitHub raw URL 사용 (Drive directSrc는 CORS 문제로 video 태그 불가)
+        if(w.type === '무빙포스터' && f.filename){
+          w.directSrc = 'https://raw.githubusercontent.com/pse0829-hue/orangejuice/main/' + encodeURIComponent(f.filename);
+        } else {
+          w.directSrc = 'https://drive.usercontent.google.com/download?id=' + f.id + '&export=download&authuser=0&confirm=t';
+        }
       }
     });
   });
@@ -777,12 +786,10 @@ window.openWorkModal=function(artistIdx,workIdx,filterMedia){
   modalArtistIdx=artistIdx;
   modalFilterMedia=filterMedia||null;
   const artist=nodes[artistIdx].artist;
-  // 포스터 뷰: 무빙포스터 슬라이드 제거
-  const works=filterMedia==='포스터'
-    ? artist.works.filter(w=>w.type==='포스터')
-    : getWorksForMedia(artist,modalFilterMedia);
-  modalWorkIdx=0;
-  renderModalWork(artist,works,0);
+  const works=artist.works.filter(w=>w.type!=='무빙포스터');
+  const startIdx=filterMedia?Math.max(0,works.findIndex(w=>w.type===filterMedia)):workIdx;
+  modalWorkIdx=startIdx;
+  renderModalWork(artist,works,startIdx);
   document.getElementById('modal').classList.add('open');
 };
 function closeDetail(){
@@ -847,11 +854,9 @@ function setMedia(m){
 }
 
 // ── Media works helper ────────────────────────
-// 포스터 선택 시 포스터+무빙포스터 모두 반환
 function getWorksForMedia(artist, m){
-  if(m==='포스터') return artist.works.filter(w=>w.type==='포스터'||w.type==='무빙포스터');
   if(m) return artist.works.filter(w=>w.type===m);
-  return artist.works;
+  return artist.works.filter(w=>w.type!=='무빙포스터');
 }
 
 // ── Hover thumbnail ───────────────────────────
@@ -884,20 +889,56 @@ let modalArtistIdx=-1, modalWorkIdx=0, modalFilterMedia=null;
 
 window.toggleMotion=function(container){
   const videoSrc=container.dataset.video;
+  const directSrc=container.dataset.direct||'';
   const posterSrc=container.dataset.poster;
   const posterTitle=container.dataset.title||'';
-  container.innerHTML=`<video src="${videoSrc}" autoplay playsinline></video>`;
   container.onclick=null;
   container.style.cursor='default';
-  const vid=container.querySelector('video');
-  vid.addEventListener('ended',function(){
+
+  function restoreAfterPlay(){
+    container.style.width='';
+    container.style.height='';
+    container.style.overflow='';
     container.innerHTML=`<img src="${posterSrc}" alt="${posterTitle}"><div class="pp-hint">▶</div>`;
     container.dataset.video=videoSrc;
+    container.dataset.direct=directSrc;
     container.dataset.poster=posterSrc;
     container.dataset.title=posterTitle;
     container.style.cursor='pointer';
-    container.onclick=function(){toggleMotion(container);};
-  });
+    container.onclick=function(){window.toggleMotion(container);};
+  }
+
+  // 포스터 크기 고정 (영상으로 전환 시 레이아웃 유지)
+  const fixedW=container.offsetWidth;
+  const fixedH=container.offsetHeight;
+  container.style.width=fixedW+'px';
+  container.style.height=fixedH+'px';
+  container.style.overflow='hidden';
+
+  function iframeHTML(src){
+    // pointer-events:none → hover 차단 → Drive 컨트롤 자동으로 사라짐
+    // 크기는 포스터와 동일하게 유지 (잘리지 않음)
+    return `<iframe src="${src}" allow="autoplay" allowfullscreen
+      style="width:${fixedW}px;height:${fixedH}px;border:none;display:block;pointer-events:none;"></iframe>`;
+  }
+
+  if(directSrc){
+    const vid=document.createElement('video');
+    vid.autoplay=true;
+    vid.controls=false;
+    vid.playsInline=true;
+    vid.style.cssText=`width:${fixedW}px;height:${fixedH}px;display:block;object-fit:contain;background:#000;`;
+    vid.addEventListener('ended',restoreAfterPlay);
+    vid.addEventListener('error',function(){
+      // directSrc 실패 시 iframe fallback (자동 복귀 불가 — 컨트롤 차단만)
+      container.innerHTML=iframeHTML(videoSrc+'?autoplay=1');
+    });
+    container.innerHTML='';
+    container.appendChild(vid);
+    vid.src=directSrc;
+  }else{
+    container.innerHTML=iframeHTML(videoSrc+'?autoplay=1');
+  }
 };
 
 function posterStartIdx(works){
@@ -909,12 +950,11 @@ function openModal(artistIdx, filterMedia){
   modalArtistIdx=artistIdx;
   modalFilterMedia=filterMedia;
   const artist=nodes[artistIdx].artist;
-  // 포스터 뷰: 무빙포스터는 별도 슬라이드 없이 포스터 클릭으로 인라인 재생
-  const works=filterMedia==='포스터'
-    ? artist.works.filter(w=>w.type==='포스터')
-    : getWorksForMedia(artist,filterMedia);
-  modalWorkIdx=0;
-  renderModalWork(artist, works, 0);
+  // 무빙포스터 제외 전체 작품, 클릭한 미디어 타입 위치에서 시작
+  const works=artist.works.filter(w=>w.type!=='무빙포스터');
+  const startIdx=Math.max(0,works.findIndex(w=>w.type===filterMedia));
+  modalWorkIdx=startIdx;
+  renderModalWork(artist, works, startIdx);
   document.getElementById('modal').classList.add('open');
 }
 
@@ -927,9 +967,10 @@ function renderModalWork(artist, works, idx){
   if(w.type==='포스터'){
     // 포스터: 클릭 시 무빙포스터 인라인 재생 (artist.works에서 탐색)
     const mp=artist.works.find(x=>x.type==='무빙포스터');
-    const videoSrc=mp&&mp.directSrc?mp.directSrc:null;
+    const videoSrc=mp&&mp.src?mp.src:null;
+    const directSrc=mp&&mp.directSrc?mp.directSrc:'';
     if(w.thumb&&videoSrc){
-      media.innerHTML=`<div class="poster-player" data-video="${videoSrc}" data-poster="${w.thumb}" data-title="${w.title}" onclick="toggleMotion(this)">
+      media.innerHTML=`<div class="poster-player" data-video="${videoSrc}" data-direct="${directSrc}" data-poster="${w.thumb}" data-title="${w.title}" onclick="toggleMotion(this)">
         <img src="${w.thumb}" alt="${w.title}">
         <div class="pp-hint">▶</div>
       </div>`;
@@ -965,9 +1006,7 @@ function renderModalWork(artist, works, idx){
 
 window.stepModal=function(dir){
   const artist=nodes[modalArtistIdx].artist;
-  const works=modalFilterMedia==='포스터'
-    ? artist.works.filter(w=>w.type==='포스터')
-    : getWorksForMedia(artist,modalFilterMedia);
+  const works=artist.works.filter(w=>w.type!=='무빙포스터');
   const next=modalWorkIdx+dir;
   if(next<0||next>=works.length)return;
   modalWorkIdx=next;

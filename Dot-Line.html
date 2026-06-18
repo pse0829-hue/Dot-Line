@@ -20,8 +20,15 @@ body{
 /* ── STARFIELD ── */
 #sf{position:fixed;inset:0;z-index:0;pointer-events:none;}
 
-/* ── INTRO ── */
-#c{position:fixed;inset:0;z-index:10;}
+/* ── INTRO VIDEO ── */
+#intro-vid{
+  position:fixed;inset:0;z-index:11;
+  width:100%;height:100%;
+  object-fit:contain;background:#090908;
+  display:block;transition:opacity 1s;
+  cursor:default;
+}
+
 #ui{position:fixed;inset:0;z-index:20;pointer-events:none;transition:opacity 1s;}
 #tl{position:absolute;top:36px;left:40px;font-size:9px;letter-spacing:.2em;color:var(--yd);line-height:1.9;text-transform:uppercase;pointer-events:auto;}
 #tr{position:absolute;top:36px;right:40px;font-size:9px;letter-spacing:.14em;color:var(--yd);text-align:right;line-height:1.9;text-transform:uppercase;}
@@ -103,9 +110,10 @@ body{
 
 /* ── CARD VIEW (by medium) ── */
 .dot-view{display:flex;align-items:center;justify-content:center;width:100%;height:100%;position:relative;}
-.card-view{display:none;width:148px;cursor:crosshair;}
+.card-view{display:none;width:120px;cursor:crosshair;}
 .card-thumb{width:100%;aspect-ratio:3/2;background:#141410;border:1px solid #252518;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:border-color .2s,aspect-ratio .2s;}
 #archive.poster-mode .card-thumb{aspect-ratio:1/1.414;}
+#archive.video-mode .card-view{width:155px;}
 .card-thumb img{width:100%;height:100%;object-fit:cover;}
 .card-ph{font-size:7px;letter-spacing:.18em;color:#2a2a14;text-transform:uppercase;}
 .card-meta{padding:6px 2px 0;}
@@ -207,18 +215,56 @@ body{
 #modal-prev::before{transform:rotate(-135deg);margin-left:5px;}
 #modal-next{left:calc(100% + 8px);}
 #modal-next::before{transform:rotate(45deg);margin-right:5px;}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  body{cursor:default;}
+  #tl,#tr{font-size:8px;top:20px;}
+  #tl{left:16px;}#tr{right:16px;}
+  #enter{font-size:16px;bottom:28px;right:24px;}
+
+  #arch-hdr{top:20px;left:16px;}
+  .hdr-t{font-size:9px;}
+
+  #arch-ctrl{top:20px;right:16px;gap:6px;}
+  .vtoggle{font-size:7px;padding:5px 10px;}
+  .mf-btn{font-size:6px;padding:4px 8px;}
+
+  #detail{width:100vw;padding:52px 20px 40px;}
+
+  #modal-inner{width:96vw;}
+  #modal-media iframe{aspect-ratio:auto;max-height:55vh;}
+  #modal-media video{max-height:55vh;}
+  #modal-media img{max-height:55vh;}
+  #modal-prev{right:auto;left:-2px;top:auto;bottom:-44px;transform:none;padding:12px;}
+  #modal-next{left:auto;right:-2px;top:auto;bottom:-44px;transform:none;padding:12px;}
+  .mi-name{font-size:11px;}
+
+  .nname{display:none;}
+  .node{width:24px;height:24px;}
+  .ndot{width:5px;height:5px;}
+
+  /* medium view: 스크롤 컨테이너 */
+  #archive.view-medium #nw{
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    position:absolute;inset:80px 0 0 0;
+    height:calc(100% - 80px);
+  }
+  #archive.view-medium #ac{display:none;}
+  #archive.view-medium .node{transform:translate(-50%,0);} /* 모바일: 위 기준 정렬 */
+}
 </style>
 </head>
 <body>
 
 <canvas id="sf"></canvas>
-<canvas id="c"></canvas>
+<iframe id="intro-vid" allow="autoplay" frameborder="0"></iframe>
 
 <!-- INTRO UI -->
 <div id="ui">
   <div id="tl">Type &amp; Media<br>Kookmin University</div>
-  <div id="tr">Found Alphabet<br>2025. 04. 18 — 20</div>
-  <div id="hint">draw between the points</div>
+  <div id="tr">Dot-Line<br>2026. 06. 18 — 20</div>
+  <div id="hint" style="display:none"></div>
   <div id="enter" onclick="enterArchive()">enter →</div>
 </div>
 
@@ -241,15 +287,7 @@ body{
     <div id="media-filter">
       <button class="mf-btn" data-m="영상"   onclick="setMedia('영상')">영상</button>
       <button class="mf-btn" data-m="포스터" onclick="setMedia('포스터')">포스터</button>
-      <button class="mf-btn" data-m="책"     onclick="setMedia('책')">책</button>
     </div>
-    <div id="ctrl-hint">— hover to preview —</div>
-    <button id="clear-btn" onclick="clearTrail()">clear trail</button>
-  </div>
-
-  <div id="arch-foot">
-    Alphabets are discovered<br>
-    through processes of connection and inference.
   </div>
 
   <div id="nw"></div>
@@ -289,15 +327,15 @@ body{
 // ══════════════════════════════════════════════
 //  DATA — 아티스트 정보 여기서 수정
 // ══════════════════════════════════════════════
-const MEDIA = ['영상','포스터','책'];
+const MEDIA = ['영상','포스터'];
 
 // works.thumb: 이미지 경로 or null
 // works.src:   영상/무빙포스터의 경우 구글드라이브 파일ID or 전체 URL
 // 구글드라이브 embed: https://drive.google.com/file/d/FILE_ID/preview
 const ARTIST_NAMES = [
   '김도윤','김민경','김서진','김시현','김지원','김규현',
-  '박세은','박신영','박예성','송영광','오채원','원준희',
-  '장지은','전혜영','조윤아','최안드레이','현병수','형이름'
+  '박세은','박신영','박예성','오채원','원준희',
+  '장지은','전혜영','조윤아','최안드레이','현병수','형이룸'
 ];
 const ARTISTS = ARTIST_NAMES.map((name,i)=>({
   id:i+1, num:String(i+1).padStart(2,'0'),
@@ -320,9 +358,12 @@ function applyDriveData(data){
   if(data.error){ console.warn('[Drive] script error:', data.error); return; }
   // macOS NFD → NFC 정규화 (한글 파일명 호환)
   var ndata = {};
-  Object.keys(data).forEach(function(k){ ndata[k.normalize('NFC')] = data[k]; });
+  Object.keys(data).forEach(function(k){
+    ndata[k.normalize('NFC')] = data[k];
+    ndata[k.normalize('NFD')] = data[k];
+  });
   ARTISTS.forEach(function(artist){
-    var d = ndata[artist.name];
+    var d = ndata[artist.name.normalize('NFC')] || ndata[artist.name.normalize('NFD')];
     if(!d) return;
     if(d.title) artist.works.forEach(function(w){ w.title = d.title; });
     artist.works.forEach(function(w){
@@ -331,15 +372,20 @@ function applyDriveData(data){
       w.thumb = 'https://drive.google.com/thumbnail?id=' + f.id + '&sz=w400';
       if(f.isVideo){
         w.src = 'https://drive.google.com/file/d/' + f.id + '/preview';
-        // 무빙포스터는 GitHub raw URL 사용 (Drive directSrc는 CORS 문제로 video 태그 불가)
-        if(w.type === '무빙포스터' && f.filename){
-          w.directSrc = 'https://raw.githubusercontent.com/pse0829-hue/orangejuice/main/' + encodeURIComponent(f.filename);
-        } else {
-          w.directSrc = 'https://drive.usercontent.google.com/download?id=' + f.id + '&export=download&authuser=0&confirm=t';
-        }
+        w.directSrc = 'https://drive.usercontent.google.com/download?id=' + f.id + '&export=download&authuser=0&confirm=t';
       }
     });
   });
+  // 인트로 영상 설정
+  var intro = data['__intro__'];
+  if(intro && intro.id){
+    var vid = document.getElementById('intro-vid');
+    if(vid && !vid.src){
+      vid.src = 'https://drive.usercontent.google.com/download?id=' + intro.id + '&export=download&authuser=0&confirm=t';
+      vid.play().catch(function(){});
+    }
+  }
+
   if(document.getElementById('archive').classList.contains('visible')){
     updateNodeLabels();
     updateCards();
@@ -378,155 +424,10 @@ function drawSF(){
 }
 
 // ══════════════════════════════════════════════
-//  INTRO — DOT LINE
+//  ARCHIVE BEZIER HELPERS
 // ══════════════════════════════════════════════
-const LD={
-  D:{pts:[[.12,.04],[.68,.04],[.94,.5],[.68,.96],[.12,.96]],segs:[[0,1],[1,2],[2,3],[3,4],[0,4]]},
-  O:{pts:[[.5,.03],[.9,.22],[.9,.78],[.5,.97],[.1,.78],[.1,.22]],segs:[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5]]},
-  T:{pts:[[.1,.04],[.5,.04],[.9,.04],[.5,.96]],segs:[[0,1],[1,2],[1,3]]},
-  L:{pts:[[.14,.04],[.14,.96],[.86,.96]],segs:[[0,1],[1,2]]},
-  I:{pts:[[.12,.04],[.5,.04],[.88,.04],[.5,.96],[.12,.96],[.88,.96]],segs:[[0,1],[1,2],[1,3],[3,4],[3,5]]},
-  N:{pts:[[.12,.04],[.88,.04],[.12,.96],[.88,.96]],segs:[[0,2],[0,3],[1,3]]},
-  E:{pts:[[.12,.04],[.88,.04],[.12,.5],[.66,.5],[.12,.96],[.88,.96]],segs:[[0,1],[0,2],[2,3],[2,4],[4,5]]}
-};
-const LINE1=['D','O','T'],LINE2=['L','I','N','E'];
 
-const cv=document.getElementById('c'),cctx=cv.getContext('2d');
-let iW,iH,cellW_i,cellH_i,gapW_i;
-let insts=[],totalSegs=0,coveredCount=0;
-let introPhase='drawing',snapStartTime=0,snapOrder=[];
-let isDrawing=false,currentStroke=[],allStrokes=[];
-let introActive=true;
 
-const BEND_VAL={L:-.3,S:0,R:.3};
-function ctrlPt(ax,ay,bx,by,b){
-  const mx=(ax+bx)/2,my=(ay+by)/2,dx=bx-ax,dy=by-ay;
-  return{x:mx-dy*b,y:my+dx*b};
-}
-function drawBez(ax,ay,bx,by,b,progress=1){
-  const cp=ctrlPt(ax,ay,bx,by,b);
-  if(progress>=1){cctx.beginPath();cctx.moveTo(ax,ay);cctx.quadraticCurveTo(cp.x,cp.y,bx,by);cctx.stroke();}
-  else{
-    const steps=24,end=Math.ceil(steps*progress);
-    cctx.beginPath();cctx.moveTo(ax,ay);
-    for(let i=1;i<=end;i++){const t=i/steps;cctx.lineTo((1-t)*(1-t)*ax+2*(1-t)*t*cp.x+t*t*bx,(1-t)*(1-t)*ay+2*(1-t)*t*cp.y+t*t*by);}
-    cctx.stroke();
-  }
-}
-function classifyBend(strokePts,ax,ay,bx,by){
-  const len=Math.hypot(bx-ax,by-ay);
-  if(len<1||strokePts.length===0)return'S';
-  let maxDev=0;
-  for(const p of strokePts){const cross=(bx-ax)*(p.y-ay)-(by-ay)*(p.x-ax),dev=cross/len;if(Math.abs(dev)>Math.abs(maxDev))maxDev=dev;}
-  if(Math.abs(maxDev)/len<0.08)return'S';
-  return maxDev>0?'R':'L';
-}
-function checkVisit(x,y,stroke){
-  if(introPhase!=='drawing')return;
-  for(const inst of insts){
-    for(let pi=0;pi<inst.pts.length;pi++){
-      if(inst.visitedPts[pi])continue;
-      const p=inst.pts[pi];
-      if(Math.hypot(p.x-x,p.y-y)<28){
-        inst.visitedPts[pi]=true;
-        for(let si=0;si<inst.segs.length;si++){
-          if(inst.covered[si])continue;
-          const[ai,bi]=inst.segs[si];
-          if(inst.visitedPts[ai]&&inst.visitedPts[bi]){
-            inst.covered[si]=true;
-            const a=inst.pts[ai],b=inst.pts[bi];
-            inst.bend[si]=classifyBend(stroke,a.x,a.y,b.x,b.y);
-            coveredCount++;
-            if(coveredCount>=totalSegs){introPhase='waiting';setTimeout(triggerSnap,800);}
-          }
-        }
-      }
-    }
-  }
-}
-function triggerSnap(){
-  introPhase='snapping';snapStartTime=performance.now();
-  snapOrder=[];let t=0;
-  for(const inst of insts){
-    for(let si=0;si<inst.segs.length;si++){snapOrder.push({inst,si,delay:t});t+=22;}
-    t+=90;
-  }
-  setTimeout(()=>{
-    introPhase='done';
-    document.getElementById('hint').style.opacity='0';
-    setTimeout(()=>document.getElementById('enter').classList.add('show'),500);
-  },t+320);
-}
-function computeLayout(){
-  iW=cv.width=innerWidth;iH=cv.height=innerHeight;
-  const margin=iW*.12,avail=iW-margin*2,nMax=LINE2.length,gapR=.2;
-  const byWidth=avail/(nMax+(nMax-1)*gapR),byHeight=iH*0.169; // 0.188 * 0.9
-  cellW_i=Math.min(byWidth,byHeight);cellH_i=cellW_i*1.38;gapW_i=cellW_i*gapR;
-  const lineGap=cellH_i*.22,blockH=2*cellH_i+lineGap,startY=(iH-blockH)/2-iH*0.06;
-  insts=[];
-  function addLine(word,y){
-    const tw=word.length*cellW_i+(word.length-1)*gapW_i,x0=(iW-tw)/2;
-    word.forEach((l,i)=>{
-      const d=LD[l];if(!d)return;
-      const lx=x0+i*(cellW_i+gapW_i);
-      const pts=d.pts.map(([nx,ny])=>({x:lx+nx*cellW_i,y:y+ny*cellH_i}));
-      insts.push({l,pts,segs:d.segs.map(s=>[...s]),covered:new Array(d.segs.length).fill(false),bend:new Array(d.segs.length).fill('S'),visitedPts:new Array(d.pts.length).fill(false)});
-    });
-  }
-  addLine(LINE1,startY);addLine(LINE2,startY+cellH_i+lineGap);
-  totalSegs=insts.reduce((s,x)=>s+x.segs.length,0);
-  coveredCount=0;introPhase='drawing';allStrokes=[];currentStroke=[];isDrawing=false;
-}
-function renderIntro(){
-  if(!introActive)return;
-  cctx.clearRect(0,0,iW,iH);
-  cctx.strokeStyle='#f2d94e';
-  const now=performance.now();
-  if(introPhase==='drawing'||introPhase==='waiting'||introPhase==='snapping'){
-    const elapsed=introPhase==='snapping'?now-snapStartTime:-1;
-    const strokeFade=introPhase==='snapping'?Math.max(0,1-elapsed/350):1;
-    if(strokeFade>0){
-      cctx.lineWidth=1.1;cctx.lineCap='round';cctx.lineJoin='round';
-      for(const s of allStrokes){
-        if(s.pts.length<2)continue;
-        cctx.globalAlpha=0.42*strokeFade;cctx.beginPath();cctx.moveTo(s.pts[0].x,s.pts[0].y);
-        for(let i=1;i<s.pts.length;i++)cctx.lineTo(s.pts[i].x,s.pts[i].y);cctx.stroke();
-      }
-      if(isDrawing&&currentStroke.length>1){
-        cctx.globalAlpha=0.55*strokeFade;cctx.beginPath();cctx.moveTo(currentStroke[0].x,currentStroke[0].y);
-        for(let i=1;i<currentStroke.length;i++)cctx.lineTo(currentStroke[i].x,currentStroke[i].y);cctx.stroke();
-      }
-      cctx.lineCap='butt';cctx.lineJoin='miter';cctx.globalAlpha=1;
-    }
-  }
-  if(introPhase==='snapping'||introPhase==='done'){
-    cctx.lineWidth=.95;
-    for(const{inst,si,delay}of snapOrder){
-      const elapsed=now-snapStartTime-delay;if(elapsed<=0)continue;
-      const progress=Math.min(elapsed/320,1);
-      const[ai,bi]=inst.segs[si];const a=inst.pts[ai],b=inst.pts[bi];
-      cctx.globalAlpha=.78*Math.min(progress*3,1);
-      drawBez(a.x,a.y,b.x,b.y,BEND_VAL[inst.bend[si]],progress);
-    }
-    cctx.globalAlpha=1;
-  }
-  for(const inst of insts){
-    for(let pi=0;pi<inst.pts.length;pi++){
-      const p=inst.pts[pi],vis=inst.visitedPts[pi],snapping=introPhase==='snapping'||introPhase==='done';
-      cctx.fillStyle='#f2d94e';cctx.shadowColor='#f2d94e';
-      cctx.shadowBlur=snapping?8:vis?12:3;cctx.globalAlpha=snapping?1:vis?1:.32;
-      cctx.beginPath();cctx.arc(p.x,p.y,3.5,0,Math.PI*2);cctx.fill();
-      cctx.shadowBlur=0;cctx.globalAlpha=1;
-    }
-  }
-  requestAnimationFrame(renderIntro);
-}
-// intro interaction
-function getPos(e){const r=cv.getBoundingClientRect(),src=e.changedTouches?e.changedTouches[0]:e.touches?e.touches[0]:e;return{x:src.clientX-r.left,y:src.clientY-r.top};}
-cv.addEventListener('mousedown',e=>{if(introPhase!=='drawing')return;const{x,y}=getPos(e);isDrawing=true;currentStroke=[{x,y}];checkVisit(x,y,currentStroke);});
-cv.addEventListener('mousemove',e=>{if(!isDrawing||introPhase!=='drawing')return;const{x,y}=getPos(e);currentStroke.push({x,y});checkVisit(x,y,currentStroke);});
-cv.addEventListener('mouseup',e=>{if(!isDrawing)return;isDrawing=false;if(currentStroke.length>1)allStrokes.push({pts:[...currentStroke]});currentStroke=[];});
-cv.addEventListener('mouseleave',e=>{if(!isDrawing)return;isDrawing=false;if(currentStroke.length>1)allStrokes.push({pts:[...currentStroke]});currentStroke=[];});
 
 // archive에서도 쓰는 bezier 헬퍼 (trail lines용)
 function bezier(ctx,ax,ay,bx,by,b){
@@ -568,21 +469,29 @@ function randLayout(n,padX,padY,minDist){
 }
 
 function cardGridLayout(){
-  const cols=6,rows=3;
-  const padX=80,padY=110,rPad=380;
-  const W=innerWidth,H=innerHeight;
-  const useW=W-padX-rPad,useH=H-padY-80;
-  const cellW=useW/cols,cellH=useH/rows;
-  return Array.from({length:18},(_,i)=>[
-    padX+cellW*(i%cols)+cellW/2,
+  const n=ARTISTS.length;
+  const isMobile=innerWidth<768;
+  const cols=isMobile?2:6;
+  const rows=Math.ceil(n/cols);
+  const padX=isMobile?16:80, padY=isMobile?90:110;
+  const cardW=120;
+  // 전체 너비 기준 셀 간격 계산 후 50%로 줄임, 왼쪽 정렬
+  const fullCellW=(innerWidth-padX-50)/cols;
+  const gapX=(fullCellW-cardW)*0.5;  // 원래 간격의 50%
+  const stepX=cardW+gapX;            // 카드 너비 + 줄인 간격
+  const startX=padX+cardW/2;         // 첫 줄 왼쪽 정렬
+  const useH=isMobile?rows*190:(innerHeight-padY-80);
+  const cellH=isMobile?190:useH/rows;
+  return Array.from({length:n},(_,i)=>[
+    startX+stepX*(i%cols),
     padY+cellH*Math.floor(i/cols)+cellH/2
   ]);
 }
 
 function placeNodes(){
-  const pPts = randLayout(18, 90, 90, 85);
+  const pPts = randLayout(ARTISTS.length, 90, 90, 85);
   const gPts = cardGridLayout();
-  const mPts  = {};
+  const mPts = {};
   MEDIA.forEach(m=>{ mPts[m]=gPts; });
 
   nodes = ARTISTS.map((artist,i)=>{
@@ -716,7 +625,6 @@ function handleClick(i){
     // trail: draw connection from previous selected
     if(selectedIdx>=0&&selectedIdx!==i){
       trailConns.push({from:selectedIdx,to:i,bend:(Math.random()-.5)*.4});
-      document.getElementById('clear-btn').classList.add('show');
     }
     nodeEls.forEach(el=>el.classList.remove('selected'));
     nodeEls[i].classList.add('selected');
@@ -731,11 +639,10 @@ function _fillDetail(i){
   const artist=nodes[i].artist;
   document.getElementById('det-num').textContent=`— ${artist.num} —`;
   document.getElementById('det-name').textContent=artist.name;
-  // 무빙포스터는 포스터에 병합 — 패널에는 영상/포스터/책만 표시
+  // 패널에는 영상/포스터만 표시
   const displayWorks=[
     {type:'영상',  fm:null},
     {type:'포스터',fm:'포스터'},
-    {type:'책',    fm:null}
   ];
   document.getElementById('det-works').innerHTML=displayWorks.map(({type,fm})=>{
     const works=fm?getWorksForMedia(artist,fm):artist.works.filter(w=>w.type===type);
@@ -804,7 +711,6 @@ function closeDetail(){
 function clearTrail(){
   trailConns=[];selectedIdx=-1;
   nodeEls.forEach(el=>el.classList.remove('selected'));
-  document.getElementById('clear-btn').classList.remove('show');
 }
 
 // ── View & media toggles ──────────────────────
@@ -818,13 +724,9 @@ function setView(v){
   if(v==='person'){
     activeMedia=null;
     document.querySelectorAll('.mf-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById('ctrl-hint').textContent='— hover to preview —';
-    document.getElementById('hdr-sub').textContent='18 artists · 72 works';
   }else{
     trailConns=[];selectedIdx=-1;
     nodeEls.forEach(el=>el.classList.remove('selected'));
-    document.getElementById('clear-btn').classList.remove('show');
-    document.getElementById('hdr-sub').textContent='18 artists';
     setMedia('영상');
     updateCards();
   }
@@ -839,13 +741,12 @@ function setMedia(m){
     if(activeMedia===m){
       activeMedia=null;
       document.querySelectorAll('.mf-btn').forEach(b=>b.classList.remove('active'));
-      document.getElementById('ctrl-hint').textContent='— select a medium —';
     }else{
       activeMedia=m;
       document.querySelectorAll('.mf-btn').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
-      document.getElementById('ctrl-hint').textContent=`— ${m} —`;
     }
     document.getElementById('archive').classList.toggle('poster-mode', activeMedia==='포스터');
+    document.getElementById('archive').classList.toggle('video-mode', activeMedia==='영상');
     updateNodeLabels();
     updateCards();
     closeModal();
@@ -922,6 +823,7 @@ window.toggleMotion=function(container){
       style="width:${fixedW}px;height:${fixedH}px;border:none;display:block;pointer-events:none;"></iframe>`;
   }
 
+  // Drive direct URL로 <video> 재생 (ended 감지 가능, 컨트롤 없음)
   if(directSrc){
     const vid=document.createElement('video');
     vid.autoplay=true;
@@ -930,13 +832,13 @@ window.toggleMotion=function(container){
     vid.style.cssText=`width:${fixedW}px;height:${fixedH}px;display:block;object-fit:contain;background:#000;`;
     vid.addEventListener('ended',restoreAfterPlay);
     vid.addEventListener('error',function(){
-      // directSrc 실패 시 iframe fallback (자동 복귀 불가 — 컨트롤 차단만)
       container.innerHTML=iframeHTML(videoSrc+'?autoplay=1');
     });
     container.innerHTML='';
     container.appendChild(vid);
     vid.src=directSrc;
   }else{
+    // 동기적으로 iframe 생성 → 클릭 제스처 유지 → autoplay 허용
     container.innerHTML=iframeHTML(videoSrc+'?autoplay=1');
   }
 };
@@ -1016,14 +918,26 @@ window.stepModal=function(dir){
 function closeModal(){document.getElementById('modal').classList.remove('open');}
 function maybeCloseModal(e){if(e.target===document.getElementById('modal'))closeModal();}
 
+// ── Intro video events ────────────────────────
+(function setupIntroVideo(){
+  var vid=document.getElementById('intro-vid');
+  // enter 버튼은 항상 바로 표시
+  document.getElementById('enter').classList.add('show');
+  if(!vid)return;
+  // 인트로 영상 하드코딩
+  var INTRO_ID='1b6VfTvoJYX8MkiXuZB4YMFNAOp-T1tme';
+  vid.src='https://drive.google.com/file/d/'+INTRO_ID+'/preview?autoplay=1';
+  // iframe은 play() 없음 — src 설정으로 자동재생
+})();
+
 // ── Enter ─────────────────────────────────────
 function enterArchive(){
-  introActive=false;
+  var vid=document.getElementById('intro-vid');
   document.getElementById('ui').style.opacity='0';
-  cv.style.transition='opacity 1s';cv.style.opacity='0';
+  if(vid){vid.style.opacity='0';}
   setTimeout(()=>{
     document.getElementById('ui').style.display='none';
-    cv.style.display='none';
+    if(vid){vid.style.display='none';vid.src='';}
     document.getElementById('archive').classList.add('visible','view-person');
     placeNodes();createNodeEls();
     requestAnimationFrame(archRAF);
@@ -1035,10 +949,9 @@ document.getElementById('nw').addEventListener('click',e=>{
   if(view==='person'&&e.target===document.getElementById('nw')) closeDetail();
 });
 window.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;});
-window.addEventListener('resize',()=>{ drawSF(); if(introActive) computeLayout(); });
-document.getElementById('tl').addEventListener('dblclick',()=>{ if(introActive) enterArchive(); });
+window.addEventListener('resize',()=>{ drawSF(); });
+document.getElementById('tl').addEventListener('dblclick',()=>{ enterArchive(); });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&introPhase==='done') enterArchive();
   if(e.key==='Escape'){ closeDetail(); closeModal(); }
   if(document.getElementById('modal').classList.contains('open')){
     if(e.key==='ArrowLeft') stepModal(-1);
@@ -1046,18 +959,25 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+// 모바일: 모달 스와이프
+(function(){
+  let tx=0;
+  const modal=document.getElementById('modal');
+  modal.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+  modal.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>50){stepModal(dx<0?1:-1);}
+  },{passive:true});
+})();
+
 // ── Init ──────────────────────────────────────
 drawSF();
 if(location.search.includes('skip')){
-  introActive=false;
   document.getElementById('ui').style.display='none';
-  cv.style.display='none';
+  document.getElementById('intro-vid').style.display='none';
   document.getElementById('archive').classList.add('visible','view-person');
   placeNodes();createNodeEls();
   requestAnimationFrame(archRAF);
-}else{
-  computeLayout();
-  requestAnimationFrame(renderIntro);
 }
 </script>
 </body>

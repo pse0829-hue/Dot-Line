@@ -47,11 +47,11 @@ body{
 }
 @keyframes blink{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.25;transform:scale(.7);}}
 #enter{
-  position:absolute;bottom:110px;right:48px;
+  position:absolute;bottom:44px;left:50%;transform:translateX(-50%);
   font-size:22px;letter-spacing:.25em;color:var(--y);
   cursor:crosshair;opacity:0;
   transition:opacity 1.2s,text-shadow .3s;
-  text-transform:uppercase;pointer-events:none;
+  text-transform:uppercase;pointer-events:none;white-space:nowrap;
 }
 #enter.show{opacity:1;pointer-events:auto;text-shadow:0 0 18px rgba(242,217,78,.75),0 0 44px rgba(242,217,78,.35);}
 #enter:hover{text-shadow:0 0 24px rgba(242,217,78,1),0 0 60px rgba(242,217,78,.5);}
@@ -141,7 +141,7 @@ body{
 #detail.open{transform:translateX(0);}
 #detail::-webkit-scrollbar{width:1px;}
 #detail::-webkit-scrollbar-thumb{background:var(--yd);}
-#det-x{position:absolute;top:22px;right:26px;font-size:16px;cursor:crosshair;color:var(--yd);transition:color .2s;}
+#det-x{display:none;position:absolute;top:22px;right:26px;font-size:16px;cursor:crosshair;color:var(--yd);transition:color .2s;}
 #det-x:hover{color:var(--y);}
 #det-num{display:none;}
 #det-name{font-size:13px;letter-spacing:.12em;color:var(--y);margin-bottom:28px;padding-bottom:14px;border-bottom:1px solid #1e1e12;}
@@ -221,7 +221,7 @@ body{
   body{cursor:default;}
   #tl,#tr{font-size:8px;top:20px;}
   #tl{left:16px;}#tr{right:16px;}
-  #enter{font-size:16px;bottom:90px;right:24px;}
+  #enter{font-size:16px;bottom:36px;}
 
   #arch-hdr{top:20px;left:16px;}
   .hdr-t{font-size:9px;}
@@ -230,6 +230,7 @@ body{
   .vtoggle{font-size:7px;padding:5px 10px;}
   .mf-btn{font-size:6px;padding:4px 8px;}
 
+  #det-x{display:block;}
   #detail{width:100vw;padding:52px 20px 40px;}
 
   #modal-inner{width:96vw;}
@@ -258,7 +259,7 @@ body{
 <body>
 
 <canvas id="sf"></canvas>
-<video id="intro-vid" autoplay muted playsinline loop src="KakaoTalk_Video_2026-06-18-08-31-07.mp4"></video>
+<video id="intro-vid" autoplay muted playsinline src="KakaoTalk_Video_2026-06-18-08-31-07.mp4"></video>
 
 <!-- INTRO UI -->
 <div id="ui">
@@ -932,12 +933,27 @@ function returnToIntro(){
   var arch=document.getElementById('archive');
   arch.classList.remove('visible','view-person','view-medium','poster-mode','video-mode');
   activeMedia=null;
+  var enter=document.getElementById('enter');
+  enter.classList.remove('show');
   var vid=document.getElementById('intro-vid');
   if(vid){
+    vid.loop=false;
     vid.style.display='block';
     vid.style.opacity='1';
     vid.currentTime=0;
     vid.play().catch(function(){});
+    var shown=false;
+    vid.addEventListener('timeupdate', function onT(){
+      if(!shown && vid.currentTime>=8){
+        shown=true;
+        enter.classList.add('show');
+        vid.removeEventListener('timeupdate',onT);
+      }
+    });
+    vid.addEventListener('ended', function(){
+      vid.loop=true;
+      vid.play().catch(function(){});
+    }, {once:true});
   }
   var ui=document.getElementById('ui');
   ui.style.display='';
@@ -945,7 +961,28 @@ function returnToIntro(){
 }
 
 // ── Intro video ────────────────────────────────
-document.getElementById('enter').classList.add('show');
+(function(){
+  var vid = document.getElementById('intro-vid');
+  // 8초에 Enter 표시, 이후 루프
+  var enterShown = false;
+  vid.addEventListener('timeupdate', function(){
+    if(!enterShown && vid.currentTime >= 8){
+      enterShown = true;
+      document.getElementById('enter').classList.add('show');
+    }
+  });
+  vid.addEventListener('ended', function(){
+    vid.loop = true;
+    vid.play().catch(function(){});
+  }, {once: true});
+  // 자동재생 시도 — 차단 시 첫 클릭으로 시작
+  vid.play().catch(function(){
+    document.body.addEventListener('click', function startVideo(){
+      vid.play().catch(function(){});
+      document.body.removeEventListener('click', startVideo);
+    });
+  });
+})();
 
 // ── Enter ─────────────────────────────────────
 function enterArchive(){

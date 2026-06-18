@@ -67,16 +67,17 @@ body{
 .hdr-s{font-size:8px;letter-spacing:.12em;color:var(--yd);margin-top:5px;}
 
 /* Controls */
-#arch-ctrl{position:absolute;top:36px;right:40px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
-.view-row{display:flex;gap:2px;}
-.vtoggle{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--yd);cursor:crosshair;padding:7px 18px;border:1px solid transparent;background:transparent;font-family:'Wanted Sans Variable','Wanted Sans',sans-serif;transition:all .2s;border-radius:999px;}
+#arch-ctrl{position:absolute;top:36px;right:40px;z-index:30;}
+.view-row{display:flex;gap:2px;align-items:flex-start;}
+.medium-wrap{display:flex;flex-direction:column;gap:4px;align-items:stretch;}
+.vtoggle{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--yd);cursor:crosshair;padding:7px 16px;border:1px solid transparent;background:transparent;font-family:'Wanted Sans Variable','Wanted Sans',sans-serif;transition:all .2s;border-radius:999px;}
 .vtoggle.active{color:var(--bg);background:var(--y);}
 .vtoggle:hover:not(.active){color:var(--y);border-color:var(--yd);}
 
 /* Media sub-toggles */
-#media-filter{display:none;flex-wrap:wrap;gap:2px;justify-content:flex-end;max-width:280px;}
+#media-filter{display:none;gap:2px;}
 #media-filter.show{display:flex;}
-.mf-btn{font-size:7px;letter-spacing:.15em;text-transform:uppercase;color:var(--yd);cursor:crosshair;padding:5px 10px;border:1px solid var(--yd);background:transparent;font-family:'Wanted Sans Variable','Wanted Sans',sans-serif;transition:all .2s;}
+.mf-btn{font-size:7px;letter-spacing:.15em;text-transform:uppercase;color:var(--yd);cursor:crosshair;padding:5px 0;border:1px solid var(--yd);background:transparent;font-family:'Wanted Sans Variable','Wanted Sans',sans-serif;transition:all .2s;border-radius:999px;flex:1;text-align:center;}
 .mf-btn:hover{color:var(--y);border-color:var(--y);}
 .mf-btn.active{color:var(--bg);background:var(--y);border-color:var(--y);}
 
@@ -182,10 +183,6 @@ body{
 .pp-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;color:rgba(242,217,78,.9);opacity:0;transition:opacity .2s;pointer-events:none;text-shadow:0 0 20px rgba(242,217,78,.5);}
 #modal-media img{width:100%;height:auto;display:block;max-height:75vh;object-fit:contain;}
 #modal-media video{width:100%;height:auto;display:block;max-height:75vh;object-fit:contain;}
-#modal-media video::-webkit-media-controls,
-#modal-media video::-webkit-media-controls-panel,
-#modal-media video::-webkit-media-controls-play-button,
-#modal-media video::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none;}
 #modal-media .ph{font-size:9px;letter-spacing:.18em;color:#2a2a14;text-transform:uppercase;}
 #modal-info{margin-top:16px;display:flex;justify-content:space-between;align-items:flex-end;}
 .mi-name{font-size:13px;letter-spacing:.12em;color:var(--y);}
@@ -283,11 +280,13 @@ body{
   <div id="arch-ctrl">
     <div class="view-row">
       <button class="vtoggle active" id="vt-p" onclick="setView('person')">by person</button>
-      <button class="vtoggle"        id="vt-m" onclick="setView('medium')">by medium</button>
-    </div>
-    <div id="media-filter">
-      <button class="mf-btn" data-m="영상"   onclick="setMedia('영상')">영상</button>
-      <button class="mf-btn" data-m="포스터" onclick="setMedia('포스터')">포스터</button>
+      <div class="medium-wrap">
+        <button class="vtoggle" id="vt-m" onclick="setView('medium')">by medium</button>
+        <div id="media-filter">
+          <button class="mf-btn" data-m="영상"   onclick="setMedia('영상')">영상</button>
+          <button class="mf-btn" data-m="포스터" onclick="setMedia('포스터')">포스터</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -341,11 +340,13 @@ const ARTIST_NAMES = [
 const ARTISTS = ARTIST_NAMES.map((name,i)=>({
   id:i+1, num:String(i+1).padStart(2,'0'),
   name,
+  motionSrc: name+'.mp4',  // GitHub 무빙포스터 파일
   works: MEDIA.map(type=>({
     type,
     title:'작품 제목',
     thumb: null,
     src:   null,
+    isLocal: false,
   }))
 }));
 
@@ -877,12 +878,10 @@ function renderModalWork(artist, works, idx){
   // Content
   const isVideo=(w.type==='영상'||w.type==='무빙포스터');
   if(w.type==='포스터'){
-    // 포스터: 클릭 시 무빙포스터 인라인 재생 (artist.works에서 탐색)
-    const mp=artist.works.find(x=>x.type==='무빙포스터');
-    const videoSrc=mp&&mp.src?mp.src:null;
-    const directSrc=mp&&mp.directSrc?mp.directSrc:'';
-    if(w.thumb&&videoSrc){
-      media.innerHTML=`<div class="poster-player" data-video="${videoSrc}" data-direct="${directSrc}" data-poster="${w.thumb}" data-title="${w.title}" onclick="toggleMotion(this)">
+    // 포스터: 클릭 시 GitHub 무빙포스터 재생 후 포스터 복귀
+    const motionSrc=artist.motionSrc||'';
+    if(w.thumb&&motionSrc){
+      media.innerHTML=`<div class="poster-player" data-video="" data-direct="${motionSrc}" data-poster="${w.thumb}" data-title="${w.title}" onclick="toggleMotion(this)">
         <img src="${w.thumb}" alt="${w.title}">
         <div class="pp-hint">▶</div>
       </div>`;
@@ -892,7 +891,7 @@ function renderModalWork(artist, works, idx){
       media.innerHTML=`<div class="ph">${w.type}</div>`;
     }
   }else if(isVideo&&w.src){
-    // 영상/무빙포스터: Drive iframe embed
+    // 영상: Drive iframe
     const src=w.src.startsWith('https://')
       ? w.src.replace('/view','/preview')
       : `https://drive.google.com/file/d/${w.src}/preview`;

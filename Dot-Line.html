@@ -8,8 +8,8 @@
 @import url('https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.1/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css');
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
-  --bg:#090908; --y:#f2d94e; --yd:#7a6e1a;
-  --panel:#0d0d0a;
+  --bg:#050504; --y:#f2d94e; --yd:#7a6e1a;
+  --panel:#090908;
 }
 body{
   background:var(--bg); color:var(--y);
@@ -24,7 +24,7 @@ body{
 #intro-vid{
   position:fixed;inset:0;z-index:11;
   width:100%;height:100%;
-  object-fit:contain;background:#090908;
+  object-fit:contain;background:#050504;
   display:block;transition:opacity 1s;
   cursor:default;
 }
@@ -69,7 +69,7 @@ body{
 /* Controls */
 #arch-ctrl{position:absolute;top:36px;right:40px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
 .view-row{display:flex;gap:2px;}
-.vtoggle{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--yd);cursor:crosshair;padding:6px 14px;border:1px solid transparent;background:transparent;font-family:'Wanted Sans Variable','Wanted Sans',sans-serif;transition:all .2s;}
+.vtoggle{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--yd);cursor:crosshair;padding:7px 18px;border:1px solid transparent;background:transparent;font-family:'Wanted Sans Variable','Wanted Sans',sans-serif;transition:all .2s;border-radius:999px;}
 .vtoggle.active{color:var(--bg);background:var(--y);}
 .vtoggle:hover:not(.active){color:var(--y);border-color:var(--yd);}
 
@@ -527,7 +527,7 @@ function getTarget(n){
 let lastAT=0;
 function archRAF(t){
   const dt=Math.min((t-lastAT)/1000,.05);lastAT=t;
-  const ts=t/1000,LERP=.045;
+  const ts=t/1000,LERP=.022;
   nodes.forEach(n=>{
     const tg=getTarget(n);
     n.baseX+=(tg.x-n.baseX)*LERP;

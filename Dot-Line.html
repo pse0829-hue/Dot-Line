@@ -47,7 +47,7 @@ body{
 }
 @keyframes blink{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.25;transform:scale(.7);}}
 #enter{
-  position:absolute;bottom:44px;right:48px;
+  position:absolute;bottom:110px;right:48px;
   font-size:22px;letter-spacing:.25em;color:var(--y);
   cursor:crosshair;opacity:0;
   transition:opacity 1.2s,text-shadow .3s;
@@ -62,7 +62,7 @@ body{
 #ac{position:absolute;inset:0;width:100%;height:100%;}
 
 /* Header */
-#arch-hdr{position:absolute;top:36px;left:40px;z-index:30;}
+#arch-hdr{position:absolute;top:36px;left:40px;z-index:30;cursor:pointer;}
 .hdr-t{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--y);line-height:1.7;}
 .hdr-s{font-size:8px;letter-spacing:.12em;color:var(--yd);margin-top:5px;}
 
@@ -221,7 +221,7 @@ body{
   body{cursor:default;}
   #tl,#tr{font-size:8px;top:20px;}
   #tl{left:16px;}#tr{right:16px;}
-  #enter{font-size:16px;bottom:28px;right:24px;}
+  #enter{font-size:16px;bottom:90px;right:24px;}
 
   #arch-hdr{top:20px;left:16px;}
   .hdr-t{font-size:9px;}
@@ -258,7 +258,7 @@ body{
 <body>
 
 <canvas id="sf"></canvas>
-<iframe id="intro-vid" allow="autoplay" frameborder="0"></iframe>
+<video id="intro-vid" autoplay muted playsinline loop src="KakaoTalk_Video_2026-06-18-08-31-07.mp4"></video>
 
 <!-- INTRO UI -->
 <div id="ui">
@@ -600,7 +600,16 @@ function updateCards(){
     const works=getWorksForMedia(n.artist,activeMedia);
     const work=works[0]||null;
     const thumb=el.querySelector('.card-thumb');
-    thumb.innerHTML=work?.thumb?`<img src="${work.thumb}">`:`<span class="card-ph">${work?.type||'—'}</span>`;
+    if(work?.thumb){
+      const img=document.createElement('img');
+      img.src=work.thumb;
+      img.onload=function(){
+        if(img.naturalWidth>img.naturalHeight) img.style.objectFit='contain';
+      };
+      thumb.innerHTML='';thumb.appendChild(img);
+    }else{
+      thumb.innerHTML=`<span class="card-ph">${work?.type||'—'}</span>`;
+    }
     el.querySelector('.card-type').textContent=
       activeMedia==='포스터'?'포스터·무빙포스터':(work?.type||'');
     el.querySelector('.card-title').textContent=work?.title||'';
@@ -918,17 +927,25 @@ window.stepModal=function(dir){
 function closeModal(){document.getElementById('modal').classList.remove('open');}
 function maybeCloseModal(e){if(e.target===document.getElementById('modal'))closeModal();}
 
-// ── Intro video events ────────────────────────
-(function setupIntroVideo(){
+function returnToIntro(){
+  closeDetail(); closeModal();
+  var arch=document.getElementById('archive');
+  arch.classList.remove('visible','view-person','view-medium','poster-mode','video-mode');
+  activeMedia=null;
   var vid=document.getElementById('intro-vid');
-  // enter 버튼은 항상 바로 표시
-  document.getElementById('enter').classList.add('show');
-  if(!vid)return;
-  // 인트로 영상 하드코딩
-  var INTRO_ID='1b6VfTvoJYX8MkiXuZB4YMFNAOp-T1tme';
-  vid.src='https://drive.google.com/file/d/'+INTRO_ID+'/preview?autoplay=1';
-  // iframe은 play() 없음 — src 설정으로 자동재생
-})();
+  if(vid){
+    vid.style.display='block';
+    vid.style.opacity='1';
+    vid.currentTime=0;
+    vid.play().catch(function(){});
+  }
+  var ui=document.getElementById('ui');
+  ui.style.display='';
+  ui.style.opacity='1';
+}
+
+// ── Intro video ────────────────────────────────
+document.getElementById('enter').classList.add('show');
 
 // ── Enter ─────────────────────────────────────
 function enterArchive(){
@@ -937,7 +954,7 @@ function enterArchive(){
   if(vid){vid.style.opacity='0';}
   setTimeout(()=>{
     document.getElementById('ui').style.display='none';
-    if(vid){vid.style.display='none';vid.src='';}
+    if(vid){vid.style.display='none';vid.pause();}
     document.getElementById('archive').classList.add('visible','view-person');
     placeNodes();createNodeEls();
     requestAnimationFrame(archRAF);
@@ -951,6 +968,7 @@ document.getElementById('nw').addEventListener('click',e=>{
 window.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;});
 window.addEventListener('resize',()=>{ drawSF(); });
 document.getElementById('tl').addEventListener('dblclick',()=>{ enterArchive(); });
+document.getElementById('arch-hdr').addEventListener('click',()=>{ returnToIntro(); });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){ closeDetail(); closeModal(); }
   if(document.getElementById('modal').classList.contains('open')){
